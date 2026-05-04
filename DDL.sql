@@ -96,3 +96,7 @@ CREATE TABLE Review (
     FOREIGN KEY (VehicleID) REFERENCES Vehicle(VehicleID) ON DELETE CASCADE,
     FOREIGN KEY (CustomerID) REFERENCES Customer(CustomerID) ON DELETE CASCADE
 );
+
+CREATE INDEX idx_vehicle_brand ON Vehicle(Brand);
+CREATE INDEX idx_vehicle_status ON Vehicle(Status);
+CREATE INDEX idx_vehicle_category ON Vehicle(Category);
