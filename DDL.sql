@@ -46,3 +46,19 @@ CREATE TABLE Customer (
     UserID INT NOT NULL UNIQUE,
     FOREIGN KEY (UserID) REFERENCES User(UserID) ON DELETE CASCADE
 );
+CREATE TABLE Vehicle (
+    VehicleID INT PRIMARY KEY AUTO_INCREMENT,
+    ManagerID INT NOT NULL,
+    Brand VARCHAR(50) NOT NULL,
+    Model VARCHAR(50) NOT NULL,
+    Location VARCHAR(100) NOT NULL,
+    FuelType VARCHAR(20) NOT NULL,
+    Transmission VARCHAR(20) NOT NULL,
+    Seats INT NOT NULL,
+    DailyPrice DECIMAL(10,2) NOT NULL CHECK (DailyPrice >= 0),
+    StockQuantity INT NOT NULL CHECK (StockQuantity >= 0),
+    Category ENUM('Sedan', 'SUV', 'Hatchback', 'Luxury', 'Economy') NOT NULL DEFAULT 'Economy',
+    Status ENUM('Available', 'Unavailable', 'Archived') NOT NULL DEFAULT 'Available',
+    Features TEXT,
+    FOREIGN KEY (ManagerID) REFERENCES FleetManager(ManagerID) ON DELETE CASCADE
+);
