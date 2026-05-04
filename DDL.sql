@@ -62,3 +62,16 @@ CREATE TABLE Vehicle (
     Features TEXT,
     FOREIGN KEY (ManagerID) REFERENCES FleetManager(ManagerID) ON DELETE CASCADE
 );
+
+CREATE TABLE Reservation (
+    ReservationID INT PRIMARY KEY AUTO_INCREMENT,
+    CustomerID INT NOT NULL,
+    VehicleID INT NOT NULL,
+    PickupDate DATE NOT NULL,
+    ReturnDate DATE NOT NULL,
+    TotalPrice DECIMAL(10,2) NOT NULL,
+    Status ENUM('Pending', 'Approved', 'Rejected', 'Canceled', 'Completed') NOT NULL DEFAULT 'Pending',
+    CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (CustomerID) REFERENCES Customer(CustomerID) ON DELETE RESTRICT,
+    FOREIGN KEY (VehicleID) REFERENCES Vehicle(VehicleID) ON DELETE RESTRICT
+);
