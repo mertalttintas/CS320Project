@@ -75,3 +75,13 @@ CREATE TABLE Reservation (
     FOREIGN KEY (CustomerID) REFERENCES Customer(CustomerID) ON DELETE RESTRICT,
     FOREIGN KEY (VehicleID) REFERENCES Vehicle(VehicleID) ON DELETE RESTRICT
 );
+
+CREATE TABLE Payment (
+    PaymentID INT PRIMARY KEY AUTO_INCREMENT,
+    ReservationID INT NOT NULL UNIQUE,
+    Amount DECIMAL(10,2) NOT NULL CHECK (Amount > 0),
+    PaymentMethod ENUM('credit_card', 'installment') NOT NULL,
+    Status ENUM('pending', 'completed', 'failed', 'refunded') NOT NULL DEFAULT 'completed',
+    PaymentDate DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ReservationID) REFERENCES Reservation(ReservationID) ON DELETE CASCADE
+);
