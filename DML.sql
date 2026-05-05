@@ -42,3 +42,8 @@ INSERT INTO Vehicle (ManagerID, Brand, Model, Location, FuelType, Transmission, 
 (2, 'BMW', 'X5', 'Istanbul', 'Diesel', 'Automatic', 5, 4200.00, 1, 'Luxury', 'Available', 'xDrive, Laser Lights'),
 (2, 'Mercedes', 'GLC', 'Ankara', 'Gasoline', 'Automatic', 5, 2900.00, 2, 'SUV', 'Available', '4MATIC, AMG Line'),
 (2, 'Ford', 'Fiesta', 'Bursa', 'Gasoline', 'Manual', 5, 800.00, 10, 'Economy', 'Available', 'Compact, Manual');
+
+
+INSERT INTO Reservation (CustomerID, VehicleID, PickupDate, ReturnDate, TotalPrice, Status) VALUES
+(1, 1, '2026-03-01', '2026-03-05', 4800.00, 'Completed'),
+(2, 16, '2026-03-10', '2026-03-12', 2200.00, 'Completed');
