@@ -47,3 +47,7 @@ INSERT INTO Vehicle (ManagerID, Brand, Model, Location, FuelType, Transmission, 
 INSERT INTO Reservation (CustomerID, VehicleID, PickupDate, ReturnDate, TotalPrice, Status) VALUES
 (1, 1, '2026-03-01', '2026-03-05', 4800.00, 'Completed'),
 (2, 16, '2026-03-10', '2026-03-12', 2200.00, 'Completed');
+
+INSERT INTO Review (VehicleID, CustomerID, Rating, Comment) VALUES
+(1, 1, 5, 'Harika bir araç, her şey çok temizdi.'),
+(16, 2, 4, 'Hibrit olması çok ekonomik, teşekkürler.');
