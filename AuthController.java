@@ -31,6 +31,17 @@ public class AuthController implements IBusinessLogic {
             throw new Exception("Invalid email or password. Attempt " + updatedUser.failedAttempts + " of 3.");
         }
     }
-    //Dear friends add remaining codes here
+    public boolean verifyRole(int requiredRoleId) {
+        return currentUser != null && currentUser.roleId == requiredRoleId;
+    }
+
+    public String hashPassword(String plainText) {
+        return PasswordHasher.hashPassword(plainText);
+    }
+
+    private boolean checkPassword(String plainText, String hashed) {
+        String inputHash = PasswordHasher.hashPassword(plainText);
+        return inputHash.equals(hashed);
+    }
 
 }
