@@ -82,3 +82,8 @@ public class LoginScreen extends JFrame implements IUserInterface {
             else showError("Email not found.");
         } catch (Exception ex) { showError(ex.getMessage()); }
     }
+
+
+
+    
+}
