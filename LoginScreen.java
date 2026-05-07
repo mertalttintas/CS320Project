@@ -82,7 +82,39 @@ public class LoginScreen extends JFrame implements IUserInterface {
             else showError("Email not found.");
         } catch (Exception ex) { showError(ex.getMessage()); }
     }
+    
+    private void attemptLogin() {
+        try {
+            boolean success = authController.login(emailField.getText(), new String(passwordField.getPassword()));
+            if (success) {
+                this.dispose();
+                // Route to appropriate dashboard based on role
+                if (AuthController.currentUser.roleId == 1) {
+                    new AdminDashboard();
+                } else if (AuthController.currentUser.roleId == 2) {
+                    new FleetManagerDashboard();
+                } else if (AuthController.currentUser.roleId == 3) {
+                    new CustomerDashboard();
+                }
+            }
+        } catch (Exception ex) {
+            showError(ex.getMessage());
+        }
+    }
 
+    @Override
+    public void displayData(Object data) {
+    }
+
+    @Override
+    public void showError(String errorMessage) {
+        JOptionPane.showMessageDialog(this, errorMessage, "Error", JOptionPane.ERROR_MESSAGE);
+    }
+
+    @Override
+    public String getInput(String prompt) {
+        return JOptionPane.showInputDialog(this, prompt);
+    }
 
 
     
