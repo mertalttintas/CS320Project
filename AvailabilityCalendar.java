@@ -79,3 +79,69 @@ public class AvailabilityCalendar extends JDialog {
     }
   
 }
+private void updateCalendar() {
+        calendarPanel.removeAll();
+        monthLabel.setText(displayDate.getMonth().name() + " " + displayDate.getYear());
+
+        String[] days = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"};
+        for (String d : days) {
+            JLabel lbl = new JLabel(d, SwingConstants.CENTER);
+            lbl.setFont(new Font("Segoe UI", Font.BOLD, 12));
+            calendarPanel.add(lbl);
+        }
+
+        int startOffset = displayDate.getDayOfWeek().getValue() - 1;
+        for (int i = 0; i < startOffset; i++) calendarPanel.add(new JLabel(""));
+
+        int daysInMonth = displayDate.lengthOfMonth();
+        for (int i = 1; i <= daysInMonth; i++) {
+            LocalDate date = displayDate.withDayOfMonth(i);
+            JButton btn = new JButton(String.valueOf(i));
+            btn.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+            
+            if (bookedDates.contains(date)) {
+                btn.setBackground(new Color(231, 76, 60)); // Red
+                btn.setForeground(Color.WHITE);
+                btn.setEnabled(false);
+            } else if (date.equals(selectedStart) || date.equals(selectedEnd)) {
+                btn.setBackground(new Color(52, 152, 219)); // Blue
+                btn.setForeground(Color.WHITE);
+            } else if (selectedStart != null && selectedEnd != null && date.isAfter(selectedStart) && date.isBefore(selectedEnd)) {
+                btn.setBackground(new Color(174, 214, 241)); // Light Blue
+            } else {
+                btn.setBackground(Color.WHITE);
+            }
+
+            btn.addActionListener(e -> {
+                if (selectedStart == null || (selectedStart != null && selectedEnd != null)) {
+                    selectedStart = date;
+                    selectedEnd = null;
+                } else if (date.isBefore(selectedStart)) {
+                    selectedStart = date;
+                } else {
+                    // Check if any date in between is booked
+                    LocalDate temp = selectedStart;
+                    boolean conflict = false;
+                    while (!temp.isAfter(date)) {
+                        if (bookedDates.contains(temp)) { conflict = true; break; }
+                        temp = temp.plusDays(1);
+                    }
+                    if (conflict) {
+                        JOptionPane.showMessageDialog(this, "Selected range contains booked dates!");
+                    } else {
+                        selectedEnd = date;
+                    }
+                }
+                updateCalendar();
+            });
+
+            calendarPanel.add(btn);
+        }
+
+        calendarPanel.revalidate();
+        calendarPanel.repaint();
+    }
+
+    public String getStartDate() { return selectedStart != null ? selectedStart.toString() : null; }
+    public String getEndDate() { return selectedEnd != null ? selectedEnd.toString() : null; }
+}
