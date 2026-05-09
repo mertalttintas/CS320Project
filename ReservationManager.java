@@ -13,7 +13,7 @@ public class ReservationManager implements IBusinessLogic {
     }
 
     public double calculateTotal(double basePrice, int days) {
-        double insuranceFee = 50.0;
+        double insuranceFee = 20.0;
         double taxes = 0.18; 
         double subtotal = (basePrice * days) + insuranceFee;
         return subtotal + (subtotal * taxes);
