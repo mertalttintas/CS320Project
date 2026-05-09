@@ -52,5 +52,91 @@ public class CustomerDashboard extends JFrame implements IUserInterface {
         add(tabs, BorderLayout.CENTER);
         setVisible(true);
     }
+
+    private JPanel createSearchPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+
+        JPanel top = new JPanel(new GridLayout(3, 4, 10, 10));
+        top.setBorder(BorderFactory.createTitledBorder("Search Filters"));
+        JTextField locField = new JTextField();
+        String[] fuelOpts = { "Any", "Gasoline", "Diesel", "Electric", "Hybrid" };
+        JComboBox<String> fuelCombo = new JComboBox<>(fuelOpts);
+        String[] transOpts = { "Any", "Automatic", "Manual" };
+        JComboBox<String> transCombo = new JComboBox<>(transOpts);
+        String[] catOpts = { "Any", "Sedan", "SUV", "Hatchback", "Luxury", "Economy" };
+        JComboBox<String> catCombo = new JComboBox<>(catOpts);
+        JTextField priceField = new JTextField("0");
+
+        top.add(new JLabel("Location:"));
+        top.add(locField);
+        top.add(new JLabel("Fuel Type:"));
+        top.add(fuelCombo);
+        top.add(new JLabel("Transmission:"));
+        top.add(transCombo);
+        top.add(new JLabel("Vehicle Type:"));
+        top.add(catCombo);
+        top.add(new JLabel("Max Price ($):"));
+        top.add(priceField);
+
+        panel.add(top, BorderLayout.NORTH);
+
+        searchTable = new JTable();
+        searchTable.setRowHeight(25);
+        searchTable.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        panel.add(new JScrollPane(searchTable), BorderLayout.CENTER);
+
+        JPanel bot = new JPanel();
+        JButton detailsBtn = new JButton("View Details & Reviews");
+        JButton bookBtn = new JButton("Reserve Selected Vehicle");
+        bot.add(detailsBtn);
+        bot.add(bookBtn);
+        panel.add(bot, BorderLayout.SOUTH);
+
+        Runnable triggerSearch = () -> {
+            try {
+                double maxP = 0;
+                try {
+                    maxP = Double.parseDouble(priceField.getText());
+                } catch (Exception ex) {
+                }
+                List<Vehicle> list = vehicleDAO.searchVehicles(locField.getText(),
+                        fuelCombo.getSelectedItem().toString(),
+                        transCombo.getSelectedItem().toString(),
+                        catCombo.getSelectedItem().toString(),
+                        maxP);
+                displayVehicles(list);
+            } catch (Exception ex) {
+            }
+        };
+
+        locField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            public void insertUpdate(javax.swing.event.DocumentEvent e) {
+                triggerSearch.run();
+            }
+
+            public void removeUpdate(javax.swing.event.DocumentEvent e) {
+                triggerSearch.run();
+            }
+
+            public void changedUpdate(javax.swing.event.DocumentEvent e) {
+                triggerSearch.run();
+            }
+        });
+
+        priceField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            public void insertUpdate(javax.swing.event.DocumentEvent e) {
+                triggerSearch.run();
+            }
+
+            public void removeUpdate(javax.swing.event.DocumentEvent e) {
+                triggerSearch.run();
+            }
+
+            public void changedUpdate(javax.swing.event.DocumentEvent e) {
+                triggerSearch.run();
+            }
+        });
+    
 //add codes here
 }
