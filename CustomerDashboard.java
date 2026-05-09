@@ -137,6 +137,79 @@ public class CustomerDashboard extends JFrame implements IUserInterface {
                 triggerSearch.run();
             }
         });
-    
+
+        fuelCombo.addActionListener(e -> triggerSearch.run());
+        transCombo.addActionListener(e -> triggerSearch.run());
+        catCombo.addActionListener(e -> triggerSearch.run());
+
+        detailsBtn.addActionListener(e -> {
+            int row = searchTable.getSelectedRow();
+            if (row == -1) {
+                showError("Select a vehicle.");
+                return;
+            }
+            showVehicleDetails((int) searchTable.getValueAt(row, 0));
+        });
+
+        bookBtn.addActionListener(e -> {
+            int row = searchTable.getSelectedRow();
+            if (row == -1) {
+                showError("Select a vehicle first.");
+                return;
+            }
+            int vId = (int) searchTable.getValueAt(row, 0);
+            double price = (double) searchTable.getValueAt(row, 7);
+            bookVehicle(vId, price);
+        });
+
+        try {
+            displayVehicles(vehicleDAO.getAllVehicles());
+        } catch (Exception ex) {
+        }
+        return panel;
+    }
+
+    private void showVehicleDetails(int vehicleId) {
+        try (Connection conn = DBConnection.getConnection()) {
+            PreparedStatement vStmt = conn.prepareStatement("SELECT * FROM Vehicle WHERE VehicleID = ?");
+            vStmt.setInt(1, vehicleId);
+            ResultSet rs = vStmt.executeQuery();
+            if (!rs.next())
+                return;
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("=== ").append(rs.getString("Brand")).append(" ").append(rs.getString("Model"))
+                    .append(" ===\n\n");
+            sb.append("Location: ").append(rs.getString("Location")).append("\n");
+            sb.append("Type: ").append(rs.getString("Category")).append("\n");
+            sb.append("Price: $").append(rs.getDouble("DailyPrice")).append(" / day\n");
+            sb.append("Fuel: ").append(rs.getString("FuelType")).append("\n");
+            sb.append("Transmission: ").append(rs.getString("Transmission")).append("\n");
+            sb.append("Seats: ").append(rs.getInt("Seats")).append("\n");
+            sb.append("Features: ").append(rs.getString("Features")).append("\n\n");
+            sb.append("--- Customer Reviews ---\n");
+
+            PreparedStatement rStmt = conn.prepareStatement(
+                    "SELECT r.Rating, r.Comment, u.Name FROM Review r JOIN Customer c ON r.CustomerID = c.CustomerID JOIN User u ON c.UserID = u.UserID WHERE r.VehicleID = ?");
+            rStmt.setInt(1, vehicleId);
+            ResultSet rs2 = rStmt.executeQuery();
+            boolean hasReviews = false;
+            while (rs2.next()) {
+                hasReviews = true;
+                sb.append("[").append(rs2.getInt(1)).append("/5] ").append(rs2.getString(3)).append(": ")
+                        .append(rs2.getString(2)).append("\n");
+            }
+            if (!hasReviews)
+                sb.append("No reviews yet.");
+
+            JTextArea area = new JTextArea(sb.toString());
+            area.setEditable(false);
+            area.setMargin(new java.awt.Insets(10, 10, 10, 10));
+            JOptionPane.showMessageDialog(this, new JScrollPane(area), "Vehicle Details",
+                    JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            showError(ex.getMessage());
+        }
+    }
 //add codes here
 }
