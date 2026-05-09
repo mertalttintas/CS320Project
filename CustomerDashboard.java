@@ -211,5 +211,86 @@ public class CustomerDashboard extends JFrame implements IUserInterface {
             showError(ex.getMessage());
         }
     }
+    private void bookVehicle(int vehicleId, double price) {
+        AvailabilityCalendar cal = new AvailabilityCalendar(this, vehicleId);
+        cal.setVisible(true);
+
+        String startStr = cal.getStartDate();
+        String endStr = cal.getEndDate();
+
+        if (startStr == null || endStr == null)
+            return;
+
+        try {
+            Date pickup = Date.valueOf(startStr);
+            Date dropoff = Date.valueOf(endStr);
+
+            long diff = dropoff.getTime() - pickup.getTime();
+            int days = (int) (diff / (1000 * 60 * 60 * 24)) + 1;
+
+            double total = reservationManager.calculateTotal(price, days);
+
+            // Payment Feature Integration
+            String[] methods = { "Credit Card", "Installment" };
+            String paymentMethod = (String) JOptionPane.showInputDialog(this,
+                    "Total Price (incl. tax/insurance): $" + String.format("%.2f", total) + "\nSelect Payment Method:",
+                    "Payment Module", JOptionPane.QUESTION_MESSAGE, null, methods, methods[0]);
+
+            if (paymentMethod == null)
+                return; // Cancelled
+
+            Reservation r = new Reservation();
+            r.customerId = getCustomerId();
+            r.vehicleId = vehicleId;
+            r.pickupDate = pickup;
+            r.returnDate = dropoff;
+            r.totalPrice = total;
+            r.status = "Pending";
+
+            if (reservationManager.confirmBooking(r)) {
+                // Process Payment record
+                try (Connection conn = DBConnection.getConnection()) {
+                    PreparedStatement pstmt = conn.prepareStatement(
+                            "INSERT INTO Payment (ReservationID, Amount, PaymentMethod, Status) VALUES (?, ?, ?, 'completed')");
+                    pstmt.setInt(1, r.reservationId);
+                    pstmt.setDouble(2, total);
+                    pstmt.setString(3, paymentMethod.equals("Credit Card") ? "credit_card" : "installment");
+                    pstmt.executeUpdate();
+                }
+                JOptionPane.showMessageDialog(this, "Reservation and Payment successful! Awaiting approval.");
+                loadMyReservations();
+            }
+        } catch (IllegalArgumentException iae) {
+            showError("Invalid date format. Use YYYY-MM-DD.");
+        } catch (Exception ex) {
+            showError("Booking failed: " + ex.getMessage());
+        }
+    }
+
+    private void displayVehicles(List<Vehicle> list) {
+        String[] cols = { "ID", "Brand", "Model", "Type", "Location", "Fuel", "Trans.", "Daily Price ($)", "Status" };
+        DefaultTableModel model = new DefaultTableModel(cols, 0);
+        for (Vehicle v : list) {
+            if ("Available".equals(v.status)) {
+                model.addRow(new Object[] { v.vehicleId, v.brand, v.model, v.category, v.location, v.fuelType,
+                        v.transmission, v.dailyPrice, v.status });
+            }
+        }
+        searchTable.setModel(model);
+    }
 //add codes here
+    
+    @Override
+    public void displayData(Object data) {
+    }
+
+    @Override
+    public void showError(String errorMessage) {
+        JOptionPane.showMessageDialog(this, errorMessage, "Error", JOptionPane.ERROR_MESSAGE);
+    }
+
+    @Override
+    public String getInput(String prompt) {
+        return JOptionPane.showInputDialog(this, prompt);
+    }
 }
