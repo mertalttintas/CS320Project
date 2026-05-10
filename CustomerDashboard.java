@@ -230,14 +230,13 @@ public class CustomerDashboard extends JFrame implements IUserInterface {
 
             double total = reservationManager.calculateTotal(price, days);
 
-            // Payment Feature Integration
             String[] methods = { "Credit Card", "Installment" };
             String paymentMethod = (String) JOptionPane.showInputDialog(this,
                     "Total Price (incl. tax/insurance): $" + String.format("%.2f", total) + "\nSelect Payment Method:",
                     "Payment Module", JOptionPane.QUESTION_MESSAGE, null, methods, methods[0]);
 
             if (paymentMethod == null)
-                return; // Cancelled
+                return; //Cancelled
 
             Reservation r = new Reservation();
             r.customerId = getCustomerId();
@@ -248,7 +247,6 @@ public class CustomerDashboard extends JFrame implements IUserInterface {
             r.status = "Pending";
 
             if (reservationManager.confirmBooking(r)) {
-                // Process Payment record
                 try (Connection conn = DBConnection.getConnection()) {
                     PreparedStatement pstmt = conn.prepareStatement(
                             "INSERT INTO Payment (ReservationID, Amount, PaymentMethod, Status) VALUES (?, ?, ?, 'completed')");
@@ -278,6 +276,75 @@ public class CustomerDashboard extends JFrame implements IUserInterface {
         }
         searchTable.setModel(model);
     }
+
+    private JPanel createMyReservationsPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+
+        myResTable = new JTable();
+        myResTable.setRowHeight(25);
+        myResTable.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        panel.add(new JScrollPane(myResTable), BorderLayout.CENTER);
+
+        JPanel bot = new JPanel();
+        JButton reviewBtn = new JButton("Leave Review");
+        JButton cancelBtn = new JButton("Cancel Reservation");
+        JButton refreshBtn = new JButton("Refresh");
+
+        bot.add(reviewBtn);
+        bot.add(cancelBtn);
+        bot.add(refreshBtn);
+        panel.add(bot, BorderLayout.SOUTH);
+
+        refreshBtn.addActionListener(e -> loadMyReservations());
+        cancelBtn.addActionListener(e -> cancelSelectedReservation());
+        reviewBtn.addActionListener(e -> {
+            int row = myResTable.getSelectedRow();
+            if (row == -1) {
+                showError("Select a reservation.");
+                return;
+            }
+            String status = (String) myResTable.getValueAt(row, 5);
+            if (!"Completed".equals(status)) {
+                showError("You can only review completed rentals.");
+                return;
+            }
+            leaveReview((int) myResTable.getValueAt(row, 1));
+        });
+
+        loadMyReservations();
+        return panel;
+    }
+
+    private void cancelSelectedReservation() {
+        int row = myResTable.getSelectedRow();
+        if (row == -1)
+            return;
+        int resId = (int) myResTable.getValueAt(row, 0);
+        String status = (String) myResTable.getValueAt(row, 5);
+
+        if (!status.equals("Pending")) {
+            showError("You can only cancel pending reservations.");
+            return;
+        }
+
+        int confirm = JOptionPane.showConfirmDialog(this, "Cancel this reservation?", "Confirm",
+                JOptionPane.YES_NO_OPTION);
+        if (confirm != JOptionPane.YES_OPTION)
+            return;
+
+        try (Connection conn = DBConnection.getConnection()) {
+            PreparedStatement stmt = conn
+                    .prepareStatement("UPDATE Reservation SET Status = 'Canceled' WHERE ReservationID = ?");
+            stmt.setInt(1, resId);
+            stmt.executeUpdate();
+            loadMyReservations();
+            JOptionPane.showMessageDialog(this, "Reservation canceled successfully.");
+        } catch (Exception ex) {
+            showError(ex.getMessage());
+        }
+    }
+    
 //add codes here
     
     @Override
@@ -293,4 +360,6 @@ public class CustomerDashboard extends JFrame implements IUserInterface {
     public String getInput(String prompt) {
         return JOptionPane.showInputDialog(this, prompt);
     }
+
+    
 }
