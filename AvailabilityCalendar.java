@@ -78,7 +78,6 @@ public class AvailabilityCalendar extends JDialog {
         } catch (Exception ex) {}
     }
   
-}
 private void updateCalendar() {
         calendarPanel.removeAll();
         monthLabel.setText(displayDate.getMonth().name() + " " + displayDate.getYear());
