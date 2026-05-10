@@ -344,8 +344,133 @@ public class CustomerDashboard extends JFrame implements IUserInterface {
             showError(ex.getMessage());
         }
     }
-    
-//add codes here
+
+    private void leaveReview(int vehicleId) {
+        String ratingStr = getInput("Rate this vehicle (1-5):");
+        if (ratingStr == null)
+            return;
+        String comment = getInput("Enter your comment:");
+        if (comment == null)
+            return;
+        try {
+            int rating = Integer.parseInt(ratingStr);
+            if (rating < 1 || rating > 5)
+                throw new NumberFormatException();
+            try (Connection conn = DBConnection.getConnection()) {
+                PreparedStatement stmt = conn.prepareStatement(
+                        "INSERT INTO Review (VehicleID, CustomerID, Rating, Comment) VALUES (?, ?, ?, ?)");
+                stmt.setInt(1, vehicleId);
+                stmt.setInt(2, getCustomerId());
+                stmt.setInt(3, rating);
+                stmt.setString(4, comment);
+                stmt.executeUpdate();
+                JOptionPane.showMessageDialog(this, "Review submitted!");
+            }
+        } catch (Exception ex) {
+            showError("Invalid input.");
+        }
+    }
+
+    private void loadMyReservations() {
+        try {
+            List<Reservation> list = reservationDAO.getReservationsByCustomer(getCustomerId());
+            String[] cols = { "Res ID", "Vehicle ID", "Pickup Date", "Return Date", "Total ($)", "Status" };
+            DefaultTableModel model = new DefaultTableModel(cols, 0);
+            for (Reservation r : list) {
+                model.addRow(new Object[] { r.reservationId, r.vehicleId, r.pickupDate, r.returnDate, r.totalPrice,
+                        r.status });
+            }
+            myResTable.setModel(model);
+        } catch (Exception e) {
+        }
+    }
+
+    private JPanel createStatsPanel() {
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        JPanel center = new JPanel(new GridLayout(2, 2, 20, 20));
+        center.setBorder(BorderFactory.createEmptyBorder(40, 40, 40, 40));
+
+        Runnable loadStats = () -> {
+            center.removeAll();
+            try (Connection conn = DBConnection.getConnection()) {
+                int cId = getCustomerId();
+                String q1 = "SELECT SUM(TotalPrice), COUNT(ReservationID) FROM Reservation WHERE CustomerID = ? AND Status IN ('Completed', 'Approved')";
+                PreparedStatement stmt1 = conn.prepareStatement(q1);
+                stmt1.setInt(1, cId);
+                ResultSet rs1 = stmt1.executeQuery();
+                String spent = "$0.00", rented = "0";
+                if (rs1.next()) {
+                    spent = "$" + String.format("%.2f", rs1.getDouble(1));
+                    rented = String.valueOf(rs1.getInt(2));
+                }
+
+                String fav = "-";
+                String q2 = "SELECT v.Brand FROM Reservation r JOIN Vehicle v ON r.VehicleID = v.VehicleID WHERE r.CustomerID = ? GROUP BY v.Brand ORDER BY COUNT(*) DESC LIMIT 1";
+                PreparedStatement stmt2 = conn.prepareStatement(q2);
+                stmt2.setInt(1, cId);
+                ResultSet rs2 = stmt2.executeQuery();
+                if (rs2.next())
+                    fav = rs2.getString(1);
+
+                String pending = "0";
+                String q3 = "SELECT COUNT(*) FROM Reservation WHERE CustomerID = ? AND Status = 'Pending'";
+                PreparedStatement stmt3 = conn.prepareStatement(q3);
+                stmt3.setInt(1, cId);
+                ResultSet rs3 = stmt3.executeQuery();
+                if (rs3.next())
+                    pending = String.valueOf(rs3.getInt(1));
+
+                center.add(createStatCard("Total Spent", spent, new Color(46, 204, 113)));
+                center.add(createStatCard("Vehicles Rented", rented, new Color(52, 152, 219)));
+                center.add(createStatCard("Favorite Brand", fav, new Color(155, 89, 182)));
+                center.add(createStatCard("Pending Res", pending, new Color(230, 126, 34)));
+
+            } catch (Exception ex) {
+            }
+            center.revalidate();
+            center.repaint();
+        };
+
+        mainPanel.add(center, BorderLayout.CENTER);
+        JButton refreshBtn = new JButton("Refresh Statistics");
+        refreshBtn.addActionListener(e -> loadStats.run());
+        JPanel bot = new JPanel();
+        bot.add(refreshBtn);
+        mainPanel.add(bot, BorderLayout.SOUTH);
+
+        loadStats.run();
+        return mainPanel;
+    }
+
+    private JPanel createStatCard(String title, String value, Color bgColor) {
+        JPanel card = new JPanel(new GridLayout(2, 1));
+        card.setBackground(bgColor);
+        card.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        JLabel titleLbl = new JLabel(title, SwingConstants.CENTER);
+        titleLbl.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        titleLbl.setForeground(Color.WHITE);
+        JLabel valLbl = new JLabel(value, SwingConstants.CENTER);
+        valLbl.setFont(new Font("Segoe UI", Font.BOLD, 28));
+        valLbl.setForeground(Color.WHITE);
+        card.add(titleLbl);
+        card.add(valLbl);
+        return card;
+    }
+
+    private int getCustomerId() {
+        if (customerId != -1)
+            return customerId;
+        try (Connection conn = DBConnection.getConnection()) {
+            PreparedStatement stmt = conn.prepareStatement("SELECT CustomerID FROM Customer WHERE UserID = ?");
+            stmt.setInt(1, AuthController.currentUser.userId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next())
+                customerId = rs.getInt(1);
+        } catch (Exception ex) {
+            showError("Customer session error.");
+        }
+        return customerId;
+    }
     
     @Override
     public void displayData(Object data) {
