@@ -104,4 +104,76 @@ public class FleetManagerDashboard extends JFrame implements IUserInterface {
         loadVehicles();
         return panel;
     }
+
+    private void addNewVehicle() {
+        try {
+            String brand = getInput("Enter Brand:");
+            if (brand == null || brand.trim().isEmpty()) return;
+            String model = getInput("Enter Model:");
+            if (model == null || model.trim().isEmpty()) return;
+            String loc = getInput("Enter Location:");
+            if (loc == null || loc.trim().isEmpty()) return;
+            
+            String[] fuelOpts = {"Gasoline", "Diesel", "Electric", "Hybrid"};
+            String fuel = (String) JOptionPane.showInputDialog(this, "Select Fuel Type:", "Fuel", JOptionPane.QUESTION_MESSAGE, null, fuelOpts, fuelOpts[0]);
+            if (fuel == null) return;
+            
+            String[] transOpts = {"Automatic", "Manual"};
+            String trans = (String) JOptionPane.showInputDialog(this, "Select Transmission:", "Transmission", JOptionPane.QUESTION_MESSAGE, null, transOpts, transOpts[0]);
+            if (trans == null) return;
+
+            String[] catOpts = {"Sedan", "SUV", "Hatchback", "Luxury", "Economy"};
+            String cat = (String) JOptionPane.showInputDialog(this, "Select Vehicle Type:", "Category", JOptionPane.QUESTION_MESSAGE, null, catOpts, catOpts[0]);
+            if (cat == null) return;
+            
+            String priceStr = getInput("Enter Daily Price:");
+            if (priceStr == null || priceStr.trim().isEmpty()) return;
+            
+            String seatStr = getInput("Enter Number of Seats (e.g. 5):");
+            if (seatStr == null || seatStr.trim().isEmpty()) seatStr = "5";
+            
+            String features = getInput("Enter Features (e.g. GPS, Sunroof):");
+            if (features == null) features = "Standard";
+            
+            double price = Double.parseDouble(priceStr);
+            int seats = Integer.parseInt(seatStr);
+            
+            if (price <= 0) {
+                showError("Daily price must be a positive number.");
+                return;
+            }
+            
+            Vehicle v = new Vehicle();
+            v.managerId = getManagerId();
+            v.brand = brand;
+            v.model = model;
+            v.location = loc;
+            v.fuelType = fuel;
+            v.transmission = trans;
+            v.seats = seats;
+            v.category = cat;
+            v.dailyPrice = price;
+            v.stockQuantity = 1;
+            v.status = "Available";
+            v.features = features;
+            
+            new FleetController().addVehicle(v);
+            JOptionPane.showMessageDialog(this, "Vehicle added!");
+            loadVehicles();
+        } catch (NumberFormatException ex) {
+            showError("Price must be a valid number!");
+        } catch (Exception ex) { 
+            showError("Failed to add vehicle: " + ex.getMessage()); 
+        }
+    }
+    
+    private int getManagerId() throws Exception {
+        try (Connection conn = DBConnection.getConnection()) {
+            PreparedStatement stmt = conn.prepareStatement("SELECT ManagerID FROM FleetManager WHERE UserID = ?");
+            stmt.setInt(1, AuthController.currentUser.userId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) return rs.getInt(1);
+            throw new Exception("Manager not found.");
+        }
+    }
     
