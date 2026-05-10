@@ -176,4 +176,189 @@ public class FleetManagerDashboard extends JFrame implements IUserInterface {
             throw new Exception("Manager not found.");
         }
     }
+    private void editSelectedVehicle() {
+        int row = vehiclesTable.getSelectedRow();
+        if (row == -1) { showError("Select a vehicle to edit."); return; }
+        int vId = (int) vehiclesTable.getValueAt(row, 0);
+        
+        try {
+            String brand = getInput("New Brand (current: " + vehiclesTable.getValueAt(row, 1) + "):");
+            if (brand == null || brand.trim().isEmpty()) return;
+            String model = getInput("New Model (current: " + vehiclesTable.getValueAt(row, 2) + "):");
+            if (model == null || model.trim().isEmpty()) return;
+            
+            String[] fuelOpts = {"Gasoline", "Diesel", "Electric", "Hybrid"};
+            String fuel = (String) JOptionPane.showInputDialog(this, "Select Fuel Type:", "Edit Fuel", JOptionPane.QUESTION_MESSAGE, null, fuelOpts, vehiclesTable.getValueAt(row, 6));
+            if (fuel == null) return;
+            
+            String[] transOpts = {"Automatic", "Manual"};
+            String trans = (String) JOptionPane.showInputDialog(this, "Select Transmission:", "Edit Transmission", JOptionPane.QUESTION_MESSAGE, null, transOpts, vehiclesTable.getValueAt(row, 7));
+            if (trans == null) return;
+            
+            String priceStr = getInput("New Daily Price (current: " + vehiclesTable.getValueAt(row, 4) + "):");
+            if (priceStr == null || priceStr.trim().isEmpty()) return;
+            double price = Double.parseDouble(priceStr);
+            if (price <= 0) { showError("Price must be positive."); return; }
+            
+            try (Connection conn = DBConnection.getConnection()) {
+                String q = "UPDATE Vehicle SET Brand=?, Model=?, FuelType=?, Transmission=?, DailyPrice=? WHERE VehicleID=?";
+                PreparedStatement stmt = conn.prepareStatement(q);
+                stmt.setString(1, brand);
+                stmt.setString(2, model);
+                stmt.setString(3, fuel);
+                stmt.setString(4, trans);
+                stmt.setDouble(5, price);
+                stmt.setInt(6, vId);
+                stmt.executeUpdate();
+                JOptionPane.showMessageDialog(this, "Vehicle updated!");
+                loadVehicles();
+            }
+        } catch (Exception ex) { showError("Update failed: " + ex.getMessage()); }
+    }
     
+    private void deleteSelectedVehicle() {
+        int row = vehiclesTable.getSelectedRow();
+        if (row == -1) { showError("Select a vehicle to delete."); return; }
+        int vId = (int) vehiclesTable.getValueAt(row, 0);
+        
+        int confirm = JOptionPane.showConfirmDialog(this, "Are you sure you want to PERMANENTLY delete this vehicle?", "Confirm Delete", JOptionPane.YES_NO_OPTION);
+        if (confirm != JOptionPane.YES_OPTION) return;
+        
+        try (Connection conn = DBConnection.getConnection()) {
+            PreparedStatement stmt = conn.prepareStatement("DELETE FROM Vehicle WHERE VehicleID = ?");
+            stmt.setInt(1, vId);
+            stmt.executeUpdate();
+            JOptionPane.showMessageDialog(this, "Vehicle deleted!");
+            loadVehicles();
+        } catch (Exception ex) {
+            showError("Cannot delete vehicle. It might have active reservations. Try using 'Toggle Availability' to hide it instead.");
+        }
+    }
+    
+    private void toggleVehicleStatus() {
+        int row = vehiclesTable.getSelectedRow();
+        if (row == -1) { showError("Select a vehicle first."); return; }
+        int vId = (int) vehiclesTable.getValueAt(row, 0);
+        String currentStatus = (String) vehiclesTable.getValueAt(row, 5);
+        String newStatus = currentStatus.equals("Available") ? "Unavailable" : "Available";
+        
+        try (Connection conn = DBConnection.getConnection()) {
+            PreparedStatement stmt = conn.prepareStatement("UPDATE Vehicle SET Status = ? WHERE VehicleID = ?");
+            stmt.setString(1, newStatus);
+            stmt.setInt(2, vId);
+            stmt.executeUpdate();
+            loadVehicles();
+        } catch (Exception ex) { showError(ex.getMessage()); }
+    }
+    
+    private void loadVehicles() {
+        try (Connection conn = DBConnection.getConnection()) {
+            PreparedStatement stmt = conn.prepareStatement("SELECT VehicleID, Brand, Model, Location, DailyPrice, Status, FuelType, Transmission FROM Vehicle WHERE ManagerID = ?");
+            stmt.setInt(1, getManagerId());
+            ResultSet rs = stmt.executeQuery();
+            String[] cols = {"ID", "Brand", "Model", "Loc.", "Price", "Status", "Fuel", "Trans."};
+            DefaultTableModel model = new DefaultTableModel(cols, 0);
+            while (rs.next()) {
+                model.addRow(new Object[]{rs.getInt(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getDouble(5), rs.getString(6), rs.getString(7), rs.getString(8)});
+            }
+            vehiclesTable.setModel(model);
+        } catch (Exception ex) {}
+    }
+    
+    private void loadRequests() {
+        try (Connection conn = DBConnection.getConnection()) {
+            String q = "SELECT r.ReservationID, v.Brand, v.Model, r.PickupDate, r.ReturnDate, r.TotalPrice, r.Status FROM Reservation r JOIN Vehicle v ON r.VehicleID = v.VehicleID WHERE v.ManagerID = ?";
+            PreparedStatement stmt = conn.prepareStatement(q);
+            stmt.setInt(1, getManagerId());
+            ResultSet rs = stmt.executeQuery();
+            String[] cols = {"Res ID", "Brand", "Model", "Pickup", "Return", "Total ($)", "Status"};
+            DefaultTableModel model = new DefaultTableModel(cols, 0);
+            while (rs.next()) model.addRow(new Object[]{rs.getInt(1), rs.getString(2), rs.getString(3), rs.getDate(4), rs.getDate(5), rs.getDouble(6), rs.getString(7)});
+            requestsTable.setModel(model);
+        } catch (Exception ex) {}
+    }
+    
+    private void updateStatus(String newStatus) {
+        int row = requestsTable.getSelectedRow();
+        if (row == -1) return;
+        try (Connection conn = DBConnection.getConnection()) {
+            PreparedStatement stmt = conn.prepareStatement("UPDATE Reservation SET Status = ? WHERE ReservationID = ?");
+            stmt.setString(1, newStatus);
+            stmt.setInt(2, (int) requestsTable.getValueAt(row, 0));
+            stmt.executeUpdate();
+            loadRequests();
+        } catch (Exception ex) {}
+    }
+    
+    private JPanel createEarningsPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        JPanel center = new JPanel(new GridLayout(2, 2, 20, 20));
+        center.setBorder(BorderFactory.createEmptyBorder(40, 40, 40, 40));
+        
+        Runnable loadStats = () -> {
+            center.removeAll();
+            try (Connection conn = DBConnection.getConnection()) {
+                String q1 = "SELECT SUM(r.TotalPrice), COUNT(r.ReservationID) FROM Reservation r JOIN Vehicle v ON r.VehicleID = v.VehicleID WHERE v.ManagerID = ? AND r.Status IN ('Completed', 'Approved')";
+                PreparedStatement stmt1 = conn.prepareStatement(q1);
+                stmt1.setInt(1, getManagerId());
+                ResultSet rs1 = stmt1.executeQuery();
+                String earn = "$0.00", comp = "0";
+                if (rs1.next()) {
+                    earn = "$" + String.format("%.2f", rs1.getDouble(1));
+                    comp = String.valueOf(rs1.getInt(2));
+                }
+                
+                String active = "0";
+                String q2 = "SELECT COUNT(*) FROM Reservation r JOIN Vehicle v ON r.VehicleID = v.VehicleID WHERE v.ManagerID = ? AND r.Status IN ('Pending', 'Approved')";
+                PreparedStatement stmt2 = conn.prepareStatement(q2);
+                stmt2.setInt(1, getManagerId());
+                ResultSet rs2 = stmt2.executeQuery();
+                if (rs2.next()) active = String.valueOf(rs2.getInt(1));
+                
+                String avg = "0.0";
+                String q3 = "SELECT AVG(Rating) FROM Review r JOIN Vehicle v ON r.VehicleID = v.VehicleID WHERE v.ManagerID = ?";
+                PreparedStatement stmt3 = conn.prepareStatement(q3);
+                stmt3.setInt(1, getManagerId());
+                ResultSet rs3 = stmt3.executeQuery();
+                if (rs3.next()) avg = String.format("%.1f", rs3.getDouble(1));
+
+                center.add(createStatCard("Total Earnings", earn, new Color(46, 204, 113)));
+                center.add(createStatCard("Completed Rentals", comp, new Color(52, 152, 219)));
+                center.add(createStatCard("Average Rating", avg, new Color(241, 196, 15)));
+                center.add(createStatCard("Active Res", active, new Color(230, 126, 34)));
+
+            } catch (Exception ex) {}
+            center.revalidate();
+            center.repaint();
+        };
+        
+        panel.add(center, BorderLayout.CENTER);
+        JButton refreshBtn = new JButton("Refresh Statistics");
+        refreshBtn.addActionListener(e -> loadStats.run());
+        JPanel bot = new JPanel(); bot.add(refreshBtn);
+        panel.add(bot, BorderLayout.SOUTH);
+        
+        loadStats.run();
+        return panel;
+    }
+
+    private JPanel createStatCard(String title, String value, Color bgColor) {
+        JPanel card = new JPanel(new GridLayout(2, 1));
+        card.setBackground(bgColor);
+        card.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        JLabel titleLbl = new JLabel(title, SwingConstants.CENTER);
+        titleLbl.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        titleLbl.setForeground(Color.WHITE);
+        JLabel valLbl = new JLabel(value, SwingConstants.CENTER);
+        valLbl.setFont(new Font("Segoe UI", Font.BOLD, 28));
+        valLbl.setForeground(Color.WHITE);
+        card.add(titleLbl);
+        card.add(valLbl);
+        return card;
+    }
+    
+    @Override public void displayData(Object data) {}
+    @Override public void showError(String errorMessage) { JOptionPane.showMessageDialog(this, errorMessage, "Error", JOptionPane.ERROR_MESSAGE); }
+    @Override public String getInput(String prompt) { return JOptionPane.showInputDialog(this, prompt); }
+}
+
